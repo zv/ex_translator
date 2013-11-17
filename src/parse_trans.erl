@@ -12,19 +12,18 @@
 -type options() :: [{atom(), any()}].
 
 %% @doc
-%% Initializes the module context and returns a tuple to begin building up the
-%% abstract representation intended for consumption by Elixir.
+%% Initializes the module context, returning a proplist with which we begin
+%% building up the abstract representation intended for consumption by Elixir.
 %% @end
--spec build_initial_context(forms(), options()) -> tuple().
-build_initial_context(Forms, Options) ->
+-spec build_initial_context(forms()) -> tuple().
+build_initial_context(Forms) ->
     Module = get_module(Forms),
     % Return initial AST module, does not include initial `do` block
     {defmodule,
-     [{context, binary_to_atom(<<"Elixir">>, utf8)}],
-     [{binary_to_atom(<<"__aliases__">>, utf8),
-       [{alias, false}],
-       [binary_to_atom(Module, utf8)]},
-       [{do, nil}]
+     [{context, list_to_atom("Elixir")}],
+     [{list_to_atom("__aliases__"),
+       [{alias, false}], [Module]},
+       [{do, nil}] % Begin the module definiton block
      ]}.
 
 %% @doc
