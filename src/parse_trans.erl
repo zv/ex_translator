@@ -9,13 +9,14 @@
 
 -type form()    :: any().
 -type forms()   :: [form()].
--type options() :: [{atom(), any()}].
+-type elixir_form() :: any().
+-type elixir_forms() :: [elixir_form()].
 
 %% @doc
 %% Initializes the module context, returning a proplist with which we begin
 %% building up the abstract representation intended for consumption by Elixir.
 %% @end
--spec build_initial_context(forms()) -> tuple().
+-spec build_initial_context(forms()) -> elixir_forms().
 build_initial_context(Forms) ->
     Module = get_module(Forms),
     % Return initial AST module, does not include initial `do` block
