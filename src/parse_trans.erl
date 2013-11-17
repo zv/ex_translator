@@ -27,6 +27,16 @@ build_initial_context(Forms, Options) ->
        [{do, nil}]
      ]}.
 
+%% @doc
+%% Derive a list of this module's exports so we can declare our functions to be
+%% either private or public.
+%% @end
+-spec get_exports(forms()) -> list().
+get_exports(Forms) ->
+  { attribute, _, export, Exports } = find_attribute(export, Forms),
+  Exports.
+
+
 %% Retuns an attribute from the parse_transform Form List
 -spec get_attribute(atom(), [any()]) -> undefined | atom().
 get_attribute(A, Forms) ->
