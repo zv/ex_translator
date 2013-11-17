@@ -63,6 +63,13 @@ find_attribute(_, []) ->
 -spec get_module([any()]) -> atom().
 get_module(Forms) -> atom_value(hd(get_attribute(module, Forms))).
 
+% A convienence method for applying a function to each subtree.
+postorder(F, Tree) ->
+  F(case erl_syntax:subtrees(Tree) of
+      [] -> Tree;
+      List -> [ postorder(F, Subtree) || Subtree <- List ]
+    end).
+
 parse_transform(Forms, Options) ->
     io:fwrite("Options = ~p~n", [Options]),
     io:fwrite("Forms = ~p~n", [Forms]),
