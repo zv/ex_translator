@@ -27,11 +27,25 @@ build_initial_context(Forms) ->
        [{do, nil}] % Begin the module definiton block
      ]}.
 
-%% @doc
-%% Derive a list of this module's exports so we can declare our functions to be
-%% either private or public.
-%% @end
--spec get_exports(forms()) -> list().
+parse_expression(variable, Expression) ->
+  {var, _LN, VarName} = Expression,
+  {VarName, [], list_to_binary("Elixir")}.
+
+parse_expression(integer, Expression) ->
+  {integer, _LN, Int} = Expression,
+  Int.
+
+parse_expression(infix_expr, Expression) ->
+  ExprOperator = erl_syntax:infix_expr_operator(Expression),
+  {
+   ExprOperator, [{context, 'Elixir'}, {import, 'Kernel'}],
+   [
+    % Concatenate the right and left infix operators as Erlang will always break
+    % out the syntax tree into distinct operations of the appropriate arity
+    parse_expression(type(erl_syntax:infix_expr_left(Expression)), Expression),
+    parse_expression(type(erl_syntax:infix_expr_right(Expression)), Expression)
+   ]
+  }.
 get_exports(Forms) ->
   { attribute, _, export, Exports } = find_attribute(export, Forms),
   Exports.
