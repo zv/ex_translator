@@ -79,12 +79,51 @@ parse_expression(case_expr, Expression) ->
     }
    ]
   }.
+
+
+%%% @doc
+%%% Return a list of our function's named arguments.
+%%% @end
+-spec function_arguments(form()) -> [string()].
+function_arguments(Func) ->
+  {clause, _LineNum, Args, _B, _Body} = hd(erl_syntax:function_clause(Func)),
+  [ {Arg, [], 'Elixir'} ||  {var, _, Arg} <- Args ].
+
+-spec process_function(form()) -> elixir_form().
+process_function(Func) ->
+  {tree, atom, _, FuncName} = erl_syntax:function_name(Func),
+  ArgList = function_arguments(Func),
+  ExpressionTree = [ parse_expression(type(Expression), Expression) ||
+                     Expression <- erl_syntax:function_clauses(Func) ],
+  {def,
+   [?ElixirCtx],
+   [ {FuncName, [], ArgList } ],
+   [{do, ExpressionTree}]
+  }.
+
+
+%%% @doc
+%%% Process our forms, appending each function to the initial module context block
+%%% @end
+-spec build_function_tree([any()], forms()) -> elixir_forms().
+build_function_tree(InitialContext, [F|Forms]) ->
+  case type(F) == function of
+    true  -> process_function(F) ++ build_function_tree(InitialContext, Forms);
+    false -> build_function_tree(InitialContext, Forms)
+  end.
+build_function_tree(InitialContext, []) ->
+  [].
+
+%%% @doc
+%%% Derive a list of this module's exports so we can declare our functions to be
+%%% either private or public.
+%%% @end
+-spec get_exports(forms()) -> none | [any()].
 get_exports(Forms) ->
-  { attribute, _, export, Exports } = find_attribute(export, Forms),
-  Exports.
+  find_attribute(export, Forms).
 
 
-%% Retuns an attribute from the parse_transform Form List
+%%% Retuns an attribute from the parse_transform Form List
 -spec get_attribute(atom(), [any()]) -> undefined | atom().
 get_attribute(A, Forms) ->
     case find_attribute(A, Forms) of
