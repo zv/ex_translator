@@ -1,49 +1,82 @@
-%% This module is a simple mechanism to print and return the parse tree
+%%% This module is a simple mechanism to print and return the parse tree
 -module(parse_trans).
 -import(erl_syntax, [atom_value/1,
                      attribute_name/1,
                      attribute_arguments/1,
-                     type/1
+                     function_clauses/1,
+                     type/1,
+
+                     variable_name/1,
+
+                     case_expr_argument/1,
+                     case_expr_clauses/1,
+
+                     infix_expr_operator/1,
+                     infix_expr_left/1,
+                     infix_expr_right/1,
+
+                     match_expr_body/1,
+
+                     integer_value/1
                     ]).
+
 -export([parse_transform/2]).
+
+-define(ElixirCtx, {context, 'Elixir'}).
+-define(ElixirEnv, [?ElixirCtx, {import, 'Kernel'}]).
 
 -type form()    :: any().
 -type forms()   :: [form()].
 -type elixir_form() :: any().
 -type elixir_forms() :: [elixir_form()].
 
-%% @doc
-%% Initializes the module context, returning a proplist with which we begin
-%% building up the abstract representation intended for consumption by Elixir.
-%% @end
--spec build_initial_context(forms()) -> elixir_forms().
-build_initial_context(Forms) ->
+%%% @doc
+%%% Initializes the module context, returning a proplist with which we begin
+%%% building up the abstract representation intended for consumption by Elixir.
+%%% @end
+-spec build_initial_context(forms(), elixir_forms()) -> elixir_forms().
+build_initial_context(Forms, ModuleBody) ->
     Module = get_module(Forms),
     % Return initial AST module, does not include initial `do` block
     {defmodule,
-     [{context, list_to_atom("Elixir")}],
-     [{list_to_atom("__aliases__"),
-       [{alias, false}], [Module]},
-       [{do, nil}] % Begin the module definiton block
-     ]}.
+     [ ?ElixirCtx ],
+     [
+      { '__aliases__', [{alias, false}], [Module]}, % Module Name
+      [{do, ModuleBody}] % Begin the module definiton block
+     ]
+    }.
 
-parse_expression(variable, Expression) ->
-  {var, _LN, VarName} = Expression,
-  {VarName, [], list_to_binary("Elixir")}.
-
-parse_expression(integer, Expression) ->
-  {integer, _LN, Int} = Expression,
-  Int.
-
+%%% @doc
+%%% parse_expression recursively converts an erlang AST expression into a
+%%% statement that we can concatenate into the Elixir syntax tree.
+%%% @end
+-spec parse_expression(atom(), form()) -> elixir_forms().
+parse_expression(variable, Expression)   -> {variable_name(Expression), [], 'Elixir'}.
+parse_expression(integer, Expression)    -> integer_value(Expression).
 parse_expression(infix_expr, Expression) ->
-  ExprOperator = erl_syntax:infix_expr_operator(Expression),
+  ExprOperator = infix_expr_operator(Expression),
   {
-   ExprOperator, [{context, 'Elixir'}, {import, 'Kernel'}],
+   ExprOperator, ?ElixirEnv,
    [
     % Concatenate the right and left infix operators as Erlang will always break
     % out the syntax tree into distinct operations of the appropriate arity
-    parse_expression(type(erl_syntax:infix_expr_left(Expression)), Expression),
-    parse_expression(type(erl_syntax:infix_expr_right(Expression)), Expression)
+    parse_expression(type(infix_expr_left(Expression)), Expression),
+    parse_expression(type(infix_expr_right(Expression)), Expression)
+   ]
+  }.
+parse_expression(case_expr, Expression) ->
+  {
+   'case',
+   ?ElixirEnv,
+   case_expr_argument(Expression), % Expression Subtree
+   [
+    {do, % case statement block
+     {
+      '->', [],
+      % Take the match_expr_body clauses as a generator, parsing each expression.
+      [ parse_expression(type(Clause), Clause) || Clause <- case_expr_clauses(Expression) ]
+     }
+    }
    ]
   }.
 get_exports(Forms) ->
