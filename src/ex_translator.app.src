@@ -9,5 +9,6 @@
                  ]},
   {modules, [ parse_trans, abstract_forms ]},
   {mod, { ex_translator, []}},
-  {env, []}
+  {env, []},
+  {lib_dirs, [ "deps/elixir/lib" ]}
  ]}.
