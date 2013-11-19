@@ -1,0 +1,13 @@
+{application, ex_translator,
+ [
+  {description, ""},
+  {vsn, "1"},
+  {registered, []},
+  {applications, [
+                  kernel,
+                  stdlib
+                 ]},
+  {modules, [ parse_trans, abstract_forms ]},
+  {mod, { ex_translator, []}},
+  {env, []}
+ ]}.
