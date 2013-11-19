@@ -127,7 +127,7 @@ translate_expression(atom, Expression) ->
   erl_syntax:atom_value(Expression);
 
 translate_expression(list, Expression) ->
-  [ translate_expression(type(E), E) || E <- erl_syntax:list_elements(Expression) ];
+  translate_elements(erl_syntax:list_elements(Expression));
 
 % Tuples of size 2 are represented as a literal in Elixir
 translate_expression(tuple, Expression) when 2 == tuple_size(Expression) ->
@@ -142,9 +142,8 @@ translate_expression(tuple, Expression) ->
 
 translate_expression(clause, Expression) ->
   #elixir_expr{
-     qualifier = do,
-     metadata  = '__block__',
-     arguments = [ translate_expression(type(C), C) || C <- erl_syntax:clause_body(Expression) ]
+     qualifier = do, metadata  = '__block__',
+     arguments = translate_elements(erl_syntax:clause_body(Expression))
   };
 
 translate_expression(variable, Expression) ->
@@ -170,15 +169,13 @@ translate_expression(infix_expr, Expression) ->
 
 translate_expression(case_expr, Expression) ->
   #elixir_expr{
-     qualifier = 'case',
-     metadata  = ?ElixirEnv,
+     qualifier = 'case', metadata  = ?ElixirEnv,
      arguments = [
                   {do,
                    { '->', [],
                      % Take the erl_syntax:match_expr_body clauses as a
                      % generator, parsing each expression.
-                     [ translate_expression(type(Clause), Clause) ||
-                       Clause <- erl_syntax:case_expr_clauses(Expression) ]
+                     translate_elements(erl_syntax:case_expr_clauses(Expression))
                    }
                   }
                  ]
