@@ -14,6 +14,8 @@
 -include("ex_translate.hrl").
 
 translate_module(Forms, _Options) ->
+  Module = get_module(Forms),
+  io:fwrite("Translating Module: ~p~n", [Module]),
   ExpressionTree = build_function_tree(Forms),
   build_initial_context(Forms, ExpressionTree).
 
@@ -39,13 +41,14 @@ build_initial_context(Forms, ExpressionTree) ->
 %%% @end
 -spec function_arguments(form()) -> #elixir_expr{}.
 function_arguments(Func) ->
-  {clause, _LineNum, Args, _B, _Body} = hd(erl_syntax:function_clause(Func)),
+  {clause, _LineNum, Args, _B, _Body} = hd(erl_syntax:function_clauses(Func)),
   [ #elixir_expr{qualifier=Arg, metadata=[], arguments='Elixir'} ||  {var, _, Arg} <- Args ].
 
 -spec process_function(form()) -> #elixir_expr{}.
 process_function(Func) ->
   {tree, atom, _, FuncName} = erl_syntax:function_name(Func),
   ArgList = function_arguments(Func),
+  io:fwrite("Processing function: ~p(~p)~n", [FuncName, ArgList]),
   ExpressionTree = [ translate_expression(type(Expression), Expression) ||
                      Expression <- erl_syntax:function_clauses(Func) ],
   #elixir_expr{
@@ -63,11 +66,13 @@ process_function(Func) ->
 -spec build_function_tree([any()], forms()) -> #elixir_expr{}.
 build_function_tree(Forms) ->
   build_function_tree([], Forms).
+
 build_function_tree(InitialContext, [F|Forms]) ->
-  case type(F) == function of
-    true  -> process_function(F) ++ build_function_tree(InitialContext, Forms);
-    false -> build_function_tree(InitialContext, Forms)
-  end;
+  Func = case type(F) == function of
+    true  -> process_function(F);
+    false -> []
+  end,
+  [Func] ++ build_function_tree(InitialContext, Forms);
 build_function_tree(_InitialContext, []) ->
   [].
 
@@ -118,6 +123,13 @@ translate_expression(atom, Expression) ->
 
 translate_expression(list, Expression) ->
   [ translate_expression(type(E), E) || E <- erl_syntax:list_elements(Expression) ];
+
+translate_expression(clause, Expression) ->
+  #elixir_expr{
+     qualifier = do,
+     metadata  = '__block__',
+     arguments = [ translate_expression(type(C), C) || C <- erl_syntax:clause_body(Expression) ]
+  };
 
 translate_expression(variable, Expression) ->
   #elixir_expr{
