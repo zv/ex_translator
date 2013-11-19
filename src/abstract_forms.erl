@@ -107,9 +107,17 @@ get_module(Forms) -> atom_value(hd(get_attribute(module, Forms))).
 %%% translate_expression recursively converts an erlang AST expression into a
 %%% statement that we can concatenate into the Elixir syntax tree.
 %%% @end
-
 translate_expression(integer, Expression)  ->
   erl_syntax:integer_value(Expression);
+
+translate_expression(float, Expression)  ->
+  erl_syntax:float_value(Expression);
+
+translate_expression(atom, Expression) ->
+  erl_syntax:atom_value(Expression);
+
+translate_expression(list, Expression) ->
+  [ translate_expression(type(E), E) || E <- erl_syntax:list_elements(Expression) ];
 
 translate_expression(variable, Expression) ->
   #elixir_expr{
@@ -136,10 +144,13 @@ translate_expression(case_expr, Expression) ->
   #elixir_expr{
      qualifier = 'case',
      metadata  = ?ElixirEnv,
-     arguments = [{do,
+     arguments = [
+                  {do,
                    { '->', [],
-                     % Take the erl_syntax:match_expr_body clauses as a generator, parsing each expression.
-                     [ translate_expression(type(Clause), Clause) || Clause <- erl_syntax:case_expr_clauses(Expression) ]
+                     % Take the erl_syntax:match_expr_body clauses as a
+                     % generator, parsing each expression.
+                     [ translate_expression(type(Clause), Clause) ||
+                       Clause <- erl_syntax:case_expr_clauses(Expression) ]
                    }
                   }
                  ]
