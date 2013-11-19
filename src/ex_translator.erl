@@ -1,10 +1,7 @@
-#!/usr/bin/env escript
-% -module(ex_translator).
--author('zv@nxvr.org').
-
-% -behaviour(application).
-
-%-export([start/2, stop/1]).
+-module(ex_translator).
+-author("Zephyr Pellerin <zv@nxvr.org>").
+-compile([{nowarn_unused_function, {main, 1}}]).
+-export([main/1]).
 
 main([String]) ->
   % Read our file args
