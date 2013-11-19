@@ -107,6 +107,11 @@ find_attribute(_, []) ->
 -spec get_module([any()]) -> atom().
 get_module(Forms) -> atom_value(hd(get_attribute(module, Forms))).
 
+%%% @doc
+%%% A helper comprehension translating each constituent expression
+%%% @end
+translate_elements(Elements) ->
+  [ translate_expression(type(E), E) || E <- Elements ].
 
 %%% @doc
 %%% translate_expression recursively converts an erlang AST expression into a
@@ -123,6 +128,17 @@ translate_expression(atom, Expression) ->
 
 translate_expression(list, Expression) ->
   [ translate_expression(type(E), E) || E <- erl_syntax:list_elements(Expression) ];
+
+% Tuples of size 2 are represented as a literal in Elixir
+translate_expression(tuple, Expression) when 2 == tuple_size(Expression) ->
+  translate_elements(erl_syntax:tuple_elements(Expression));
+
+% Otherwise the are represented as a call to {}
+translate_expression(tuple, Expression) ->
+  #elixir_expr{
+     qualifier = '{}', metadata  = [],
+     arguments = translate_elements(erl_syntax:tuple_elements(Expression))
+  };
 
 translate_expression(clause, Expression) ->
   #elixir_expr{
