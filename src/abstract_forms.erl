@@ -169,6 +169,21 @@ translate_expression(clause, Expression) ->
      arguments = translate_elements( erl_syntax:clause_body(Expression) )
     };
 
+% Generators represent expressions of the form X <- [1,2,3]
+translate_expression(generator, Expression) ->
+  % Pattern represents the variable being bound
+  P = erl_syntax:generator_pattern(Expression),
+  % Body contains the expression or list literal
+  B = erl_syntax:generator_body(Expression),
+  #elixir_expr{
+     qualifier = generator,
+     metadata  = [],
+     arguments = [
+                  translate_expression(type(P), P),
+                  translate_expression(type(B), B)
+                 ]
+    };
+
 translate_expression(infix_expr, Expression) ->
   #elixir_expr{
      qualifier = erl_syntax:infix_expr_operator(Expression),
