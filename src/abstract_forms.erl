@@ -117,6 +117,11 @@ translate_elements(Elements) ->
 %%% translate_expression recursively converts an erlang AST expression into a
 %%% statement that we can concatenate into the Elixir syntax tree.
 %%% @end
+
+%%
+%% Literal Expressions
+%%
+
 translate_expression(integer, Expression)  ->
   erl_syntax:integer_value(Expression);
 
@@ -133,12 +138,30 @@ translate_expression(list, Expression) ->
 translate_expression(tuple, Expression) when 2 == tuple_size(Expression) ->
   translate_elements(erl_syntax:tuple_elements(Expression));
 
-% Otherwise the are represented as a call to {}
+%%
+%% Composite Expressions
+%%
+
+% Tuples *not* containing exactly 2 elements are represented by a call to :{}
 translate_expression(tuple, Expression) ->
   #elixir_expr{
      qualifier = '{}', metadata  = [],
      arguments = translate_elements(erl_syntax:tuple_elements(Expression))
   };
+
+translate_expression(case_expr, Expression) ->
+  #elixir_expr{
+     qualifier = 'case', metadata  = ?ElixirEnv,
+     arguments = [
+                  {do,
+                   { '->', [],
+                     % Take the erl_syntax:match_expr_body clauses as a
+                     % generator, parsing each expression.
+                     translate_elements(erl_syntax:case_expr_clauses(Expression))
+                   }
+                  }
+                 ]
+    };
 
 translate_expression(clause, Expression) ->
   #elixir_expr{
@@ -146,12 +169,6 @@ translate_expression(clause, Expression) ->
      arguments = translate_elements(erl_syntax:clause_body(Expression))
   };
 
-translate_expression(variable, Expression) ->
-  #elixir_expr{
-     qualifier = erl_syntax:variable_name(Expression),
-     metadata  = [],
-     arguments = 'Elixir'
-    };
 
 translate_expression(infix_expr, Expression) ->
   #elixir_expr{
@@ -167,16 +184,9 @@ translate_expression(infix_expr, Expression) ->
                  ]
     };
 
-translate_expression(case_expr, Expression) ->
+translate_expression(variable, Expression) ->
   #elixir_expr{
-     qualifier = 'case', metadata  = ?ElixirEnv,
-     arguments = [
-                  {do,
-                   { '->', [],
-                     % Take the erl_syntax:match_expr_body clauses as a
-                     % generator, parsing each expression.
-                     translate_elements(erl_syntax:case_expr_clauses(Expression))
-                   }
-                  }
-                 ]
+     qualifier = erl_syntax:variable_name(Expression),
+     metadata  = [],
+     arguments = 'Elixir'
     }.
