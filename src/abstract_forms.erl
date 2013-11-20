@@ -69,9 +69,9 @@ build_function_tree(Forms) ->
 
 build_function_tree(InitialContext, [F|Forms]) ->
   Func = case type(F) == function of
-    true  -> process_function(F);
-    false -> []
-  end,
+           true  -> process_function(F);
+           false -> []
+         end,
   [Func] ++ build_function_tree(InitialContext, Forms);
 build_function_tree(_InitialContext, []) ->
   [].
@@ -146,8 +146,8 @@ translate_expression(tuple, Expression) when 2 == tuple_size(Expression) ->
 translate_expression(tuple, Expression) ->
   #elixir_expr{
      qualifier = '{}', metadata  = [],
-     arguments = translate_elements(erl_syntax:tuple_elements(Expression))
-  };
+     arguments = translate_elements( erl_syntax:tuple_elements(Expression) )
+    };
 
 translate_expression(case_expr, Expression) ->
   #elixir_expr{
@@ -157,7 +157,7 @@ translate_expression(case_expr, Expression) ->
                    { '->', [],
                      % Take the erl_syntax:match_expr_body clauses as a
                      % generator, parsing each expression.
-                     translate_elements(erl_syntax:case_expr_clauses(Expression))
+                     translate_elements( erl_syntax:case_expr_clauses(Expression) )
                    }
                   }
                  ]
@@ -166,9 +166,8 @@ translate_expression(case_expr, Expression) ->
 translate_expression(clause, Expression) ->
   #elixir_expr{
      qualifier = do, metadata  = '__block__',
-     arguments = translate_elements(erl_syntax:clause_body(Expression))
-  };
-
+     arguments = translate_elements( erl_syntax:clause_body(Expression) )
+    };
 
 translate_expression(infix_expr, Expression) ->
   #elixir_expr{
@@ -176,10 +175,10 @@ translate_expression(infix_expr, Expression) ->
      metadata  = ?ElixirEnv,
      arguments = [
                   translate_expression(
-                    type(erl_syntax:infix_expr_left(Expression)), Expression
+                    type( erl_syntax:infix_expr_left(Expression) ), Expression
                    ),
                   translate_expression(
-                    type(erl_syntax:infix_expr_right(Expression)), Expression
+                    type( erl_syntax:infix_expr_right(Expression) ), Expression
                    )
                  ]
     };
