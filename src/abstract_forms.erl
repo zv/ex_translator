@@ -163,6 +163,9 @@ translate_expression(case_expr, Expression) ->
                  ]
     };
 
+% Clause is a generic expression representing a new named or anonymous function
+% body, block expression, or any case where a new scope will be created in a
+% block.
 translate_expression(clause, Expression) ->
   #elixir_expr{
      qualifier = do, metadata  = '__block__',
@@ -184,6 +187,7 @@ translate_expression(generator, Expression) ->
                  ]
     };
 
+% Infix expressions are simple two parameter operators, such as arithmetic.
 translate_expression(infix_expr, Expression) ->
   #elixir_expr{
      qualifier = erl_syntax:infix_expr_operator(Expression),
