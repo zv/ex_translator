@@ -184,6 +184,15 @@ translate_expression(infix_expr, Expression) ->
                  ]
     };
 
+translate_expression(list_comp, Expression) ->
+  Comprehension      = erl_syntax:list_comp_template(Expression),
+  #elixir_expr{
+     qualifier = lc,
+     metadata  = [],
+     arguments = [  translate_expression( type(Comprehension), Comprehension ) ]
+                 ++ translate_elements( erl_syntax:list_comp_body(Expression) )
+    };
+
 translate_expression(variable, Expression) ->
   #elixir_expr{
      qualifier = erl_syntax:variable_name(Expression),
