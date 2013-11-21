@@ -122,19 +122,23 @@ translate_elements(Elements) ->
 %% Literal Expressions
 %%
 
+% 1
 translate_expression(integer, Expression)  ->
   erl_syntax:integer_value(Expression);
 
+% 1.0
 translate_expression(float, Expression)  ->
   erl_syntax:float_value(Expression);
 
+% :atom
 translate_expression(atom, Expression) ->
   erl_syntax:atom_value(Expression);
 
+% [1,2,3]
 translate_expression(list, Expression) ->
   translate_elements(erl_syntax:list_elements(Expression));
 
-% Tuples of size 2 are represented as a literal in Elixir
+% { } - Tuples of size 2 are represented as a literal in Elixir
 translate_expression(tuple, Expression) when 2 == tuple_size(Expression) ->
   translate_elements(erl_syntax:tuple_elements(Expression));
 
@@ -142,7 +146,7 @@ translate_expression(tuple, Expression) when 2 == tuple_size(Expression) ->
 %% Composite Expressions
 %%
 
-% Tuples *not* containing exactly 2 elements are represented by a call to :{}
+% { } - Tuples *not* containing exactly 2 elements are represented by a call to :{}
 translate_expression(tuple, Expression) ->
   #elixir_expr{
      qualifier = '{}', metadata  = [],
