@@ -172,6 +172,43 @@ translate_expression(clause, Expression) ->
      arguments = translate_elements( erl_syntax:clause_body(Expression) )
     };
 
+% Expressions like << 16 >> & << 16:4/bitstring >>
+translate_expression(binary, Expression) ->
+  #elixir_expr{
+     qualifier  = '<<>>',
+     metadata   = [],
+     arguments  = translate_elements(erl_syntax:binary_fields(Expression))
+    };
+
+% binary_fields represent the body of a binary expression, i.e << "body" >>
+translate_expression(binary_fields, Expression) ->
+  TypePredicate = {
+    erl_syntax:binary_field_types(Expression),
+    erl_syntax:binary_field_size(Expression)
+   },
+
+  case TypePredicate of
+    % Binaries without type information in their predicate can be converted to literals
+    { [], none } ->
+      Bin = erl_syntax:binary_field_body(Expression),
+      translate_expression(type(Bin), Bin);
+
+    % << 16 :: [size(8), integer] >>  are translated in below
+    _ ->
+      #elixir_expr{
+         qualifier = '::',
+         metadata  = [],
+         arguments = [
+            % Size specifier
+            translate_expression(
+              type(Expression), erl_syntax:binary_field_size(Expression)
+            ),
+            % atoms of type information (unsigned, integer, big/little endian)
+            translate_elements(erl_syntax:binary_field_types(Expression))
+           ]
+        }
+  end;
+
 % Generators represent expressions of the form X <- [1,2,3]
 translate_expression(generator, Expression) ->
   % Pattern represents the variable being bound
