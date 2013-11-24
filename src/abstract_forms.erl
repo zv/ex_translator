@@ -142,9 +142,34 @@ translate_expression(list, Expression) ->
 translate_expression(tuple, Expression) when 2 == tuple_size(Expression) ->
   translate_elements(erl_syntax:tuple_elements(Expression));
 
+translate_expression(module_qualifier, Expression) ->
+  [
+    erl_syntax:module_qualifier_argument(Expression),
+    erl_syntax:module_qualifier_body(Expression)
+  ];
+
 %%
 %% Composite Expressions
 %%
+
+%% application unintuitively represents a remote call expression
+translate_expression(application, Expression) ->
+  ModuleQualifier = erl_syntax:application_operator(Expression),
+  RemoteCallExpr = #elixir_expr{
+    qualifier = '.',
+    metadata  = [],
+    arguments = translate_expression(type(ModuleQualifier), ModuleQualifier)
+  },
+  CallArgs  = translate_elements(erl_syntax:application_arguments(Expression)),
+  % Remote calls are built in an unusual fashion as demonstrated below, the
+  % remote call expression (including the module qualifier) is the expression
+  % qualifier, giving the impression of a 'missed step'. In reality this structure
+  % is used to accommodate local and remote call expressions in the same syntax expr.
+  #elixir_expr{
+    qualifier = RemoteCallExpr,
+    metadata  = [],
+    arguments = CallArgs
+  };
 
 % { } - Tuples *not* containing exactly 2 elements are represented by a call to :{}
 translate_expression(tuple, Expression) ->
@@ -227,6 +252,7 @@ translate_expression(generator, Expression) ->
                   translate_expression(type(B), B)
                  ]
     };
+
 
 % Infix expressions are simple two parameter operators, such as arithmetic.
 translate_expression(infix_expr, Expression) ->
