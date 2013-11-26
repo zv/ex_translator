@@ -4,11 +4,13 @@
 -type form()    :: any().
 -type forms()   :: [form()].
 
--record(elixir_expr, {
+-define( elixir_expr( Qualifier,Metadata,Arguments ), { Qualifier,Metadata,Arguments } ).
+-type elixir_expr() :: {
   % describes the expression type or qualifier
-  qualifier :: tuple() | atom,
+  tuple() | atom(),
   % list of metadata, it may hold information like the node line number;
-  metadata  :: list(),
+  list(),
   % list of arguments for the function call or when an atom it means the tuple represents a variable
-  arguments :: list() | atom
-}).
+  list() | atom()
+}.
+

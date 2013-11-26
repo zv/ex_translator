@@ -23,47 +23,45 @@ translate_module(Forms, _Options) ->
 %%% Initializes the module context, returning a proplist with which we begin
 %%% building up the abstract representation intended for consumption by Elixir.
 %%% @end
--spec build_initial_context(forms(), #elixir_expr{}) -> #elixir_expr{}.
+-spec build_initial_context(forms(), elixir_expr()) -> elixir_expr().
 build_initial_context(Forms, ExpressionTree) ->
-  #elixir_expr{
-     qualifier = defmodule,
-     metadata  = [ ?ElixirCtx ],
-     arguments = [
-                  % Module Name
-                  { '__aliases__', [{alias, false}], [ get_module(Forms) ]},
-                  % Begin the module definiton block
-                  [{do, ExpressionTree}]
-                 ]
-    }.
+  ?elixir_expr( defmodule,
+                [ ?ElixirCtx ],
+                [
+                 % Module Name
+                 { '__aliases__', [{alias, false}], [ get_module(Forms) ]},
+                 % Begin the module definiton block
+                 [{do, ExpressionTree}]
+                ]
+              ).
 
 %%% @doc
 %%% Return a list of our function's named arguments.
 %%% @end
--spec function_arguments(form()) -> #elixir_expr{}.
+-spec function_arguments(form()) -> elixir_expr().
 function_arguments(Func) ->
   {clause, _LineNum, Args, _B, _Body} = hd(erl_syntax:function_clauses(Func)),
-  [ #elixir_expr{qualifier=Arg, metadata=[], arguments='Elixir'} ||  {var, _, Arg} <- Args ].
+  [ ?elixir_expr(Arg, [], 'Elixir') || {var, _, Arg} <- Args ].
 
--spec process_function(form()) -> #elixir_expr{}.
+-spec process_function(form()) -> elixir_expr().
 process_function(Func) ->
   {tree, atom, _, FuncName} = erl_syntax:function_name(Func),
   ArgList = function_arguments(Func),
   io:fwrite("Processing function: ~p(~p)~n", [FuncName, ArgList]),
   ExpressionTree = [ translate_expression(type(Expression), Expression) ||
                      Expression <- erl_syntax:function_clauses(Func) ],
-  #elixir_expr{
-     qualifier = def,
-     metadata  = [ ?ElixirCtx ],
-     arguments = [
-                  { FuncName, [], ArgList },
-                  [ { do, ExpressionTree } ]
-                 ]
-    }.
+  ?elixir_expr( def,
+                [ ?ElixirCtx ],
+                [
+                 { FuncName, [], ArgList },
+                 [ { do, ExpressionTree } ]
+                ]
+              ).
 
 %%% @doc
 %%% Process our forms, appending each function to the initial module context block
 %%% @end
--spec build_function_tree([any()], forms()) -> #elixir_expr{}.
+-spec build_function_tree([any()], forms()) -> elixir_expr().
 build_function_tree(Forms) ->
   build_function_tree([], Forms).
 
@@ -155,59 +153,53 @@ translate_expression(module_qualifier, Expression) ->
 %% application unintuitively represents a remote call expression
 translate_expression(application, Expression) ->
   ModuleQualifier = erl_syntax:application_operator(Expression),
-  RemoteCallExpr = #elixir_expr{
-    qualifier = '.',
-    metadata  = [],
-    arguments = translate_expression(type(ModuleQualifier), ModuleQualifier)
-  },
+  RemoteCallExpr = ?elixir_expr( '.',
+                                 [],
+                                 translate_expression(type(ModuleQualifier), ModuleQualifier)
+                               ),
   CallArgs  = translate_elements(erl_syntax:application_arguments(Expression)),
   % Remote calls are built in an unusual fashion as demonstrated below, the
   % remote call expression (including the module qualifier) is the expression
   % qualifier, giving the impression of a 'missed step'. In reality this structure
   % is used to accommodate local and remote call expressions in the same syntax expr.
-  #elixir_expr{
-    qualifier = RemoteCallExpr,
-    metadata  = [],
-    arguments = CallArgs
-  };
+  ?elixir_expr( RemoteCallExpr,
+                [],
+                CallArgs
+              );
 
 % { } - Tuples *not* containing exactly 2 elements are represented by a call to :{}
 translate_expression(tuple, Expression) ->
-  #elixir_expr{
-     qualifier = '{}', metadata  = [],
-     arguments = translate_elements( erl_syntax:tuple_elements(Expression) )
-    };
+  ?elixir_expr( '{}', [],
+                translate_elements( erl_syntax:tuple_elements(Expression) )
+              );
 
 translate_expression(case_expr, Expression) ->
-  #elixir_expr{
-     qualifier = 'case', metadata  = ?ElixirEnv,
-     arguments = [
-                  {do,
-                   { '->', [],
-                     % Take the erl_syntax:match_expr_body clauses as a
-                     % generator, parsing each expression.
-                     translate_elements( erl_syntax:case_expr_clauses(Expression) )
-                   }
+  ?elixir_expr( 'case', ?ElixirEnv,
+                [
+                 {do,
+                  { '->', [],
+                    % Take the erl_syntax:match_expr_body clauses as a
+                    % generator, parsing each expression.
+                    translate_elements( erl_syntax:case_expr_clauses(Expression) )
                   }
-                 ]
-    };
+                 }
+                ]
+              );
 
 % Clause is a generic expression representing a new named or anonymous function
 % body, block expression, or any case where a new scope will be created in a
 % block.
 translate_expression(clause, Expression) ->
-  #elixir_expr{
-     qualifier = do, metadata  = '__block__',
-     arguments = translate_elements( erl_syntax:clause_body(Expression) )
-    };
+  ?elixir_expr( do, '__block__',
+                translate_elements( erl_syntax:clause_body(Expression) )
+              );
 
 % Expressions like << 16 >> & << 16:4/bitstring >>
 translate_expression(binary, Expression) ->
-  #elixir_expr{
-     qualifier  = '<<>>',
-     metadata   = [],
-     arguments  = translate_elements(erl_syntax:binary_fields(Expression))
-    };
+  ?elixir_expr( '<<>>',
+                [],
+                translate_elements(erl_syntax:binary_fields(Expression))
+              );
 
 % binary_fields represent the body of a binary expression, i.e << "body" >>
 translate_expression(binary_fields, Expression) ->
@@ -224,18 +216,17 @@ translate_expression(binary_fields, Expression) ->
 
     % << 16 :: [size(8), integer] >>  are translated in below
     _ ->
-      #elixir_expr{
-         qualifier = '::',
-         metadata  = [],
-         arguments = [
-            % Size specifier
-            translate_expression(
-              type(Expression), erl_syntax:binary_field_size(Expression)
-            ),
-            % atoms of type information (unsigned, integer, big/little endian)
-            translate_elements(erl_syntax:binary_field_types(Expression))
-           ]
-        }
+      ?elixir_expr( '::',
+                    [],
+                    [
+                     % Size specifier
+                     translate_expression(
+                       type(Expression), erl_syntax:binary_field_size(Expression)
+                      ),
+                     % atoms of type information (unsigned, integer, big/little endian)
+                     translate_elements(erl_syntax:binary_field_types(Expression))
+                    ]
+                  )
   end;
 
 % Generators represent expressions of the form X <- [1,2,3]
@@ -244,43 +235,39 @@ translate_expression(generator, Expression) ->
   P = erl_syntax:generator_pattern(Expression),
   % Body contains the expression or list literal
   B = erl_syntax:generator_body(Expression),
-  #elixir_expr{
-     qualifier = generator,
-     metadata  = [],
-     arguments = [
-                  translate_expression(type(P), P),
-                  translate_expression(type(B), B)
-                 ]
-    };
+  ?elixir_expr( generator,
+                [],
+                [
+                 translate_expression(type(P), P),
+                 translate_expression(type(B), B)
+                ]
+              );
 
 
 % Infix expressions are simple two parameter operators, such as arithmetic.
 translate_expression(infix_expr, Expression) ->
-  #elixir_expr{
-     qualifier = erl_syntax:infix_expr_operator(Expression),
-     metadata  = ?ElixirEnv,
-     arguments = [
-                  translate_expression(
-                    type( erl_syntax:infix_expr_left(Expression) ), Expression
-                   ),
-                  translate_expression(
-                    type( erl_syntax:infix_expr_right(Expression) ), Expression
-                   )
-                 ]
-    };
+  ?elixir_expr( erl_syntax:infix_expr_operator(Expression),
+                ?ElixirEnv,
+                [
+                 translate_expression(
+                   type( erl_syntax:infix_expr_left(Expression) ), Expression
+                  ),
+                 translate_expression(
+                   type( erl_syntax:infix_expr_right(Expression) ), Expression
+                  )
+                ]
+              );
 
 translate_expression(list_comp, Expression) ->
   Comprehension      = erl_syntax:list_comp_template(Expression),
-  #elixir_expr{
-     qualifier = lc,
-     metadata  = [],
-     arguments = [  translate_expression( type(Comprehension), Comprehension ) ]
-                 ++ translate_elements( erl_syntax:list_comp_body(Expression) )
-    };
+  ?elixir_expr( lc,
+                [],
+                [  translate_expression( type(Comprehension), Comprehension ) ]
+                ++ translate_elements( erl_syntax:list_comp_body(Expression) )
+              );
 
 translate_expression(variable, Expression) ->
-  #elixir_expr{
-     qualifier = erl_syntax:variable_name(Expression),
-     metadata  = [],
-     arguments = 'Elixir'
-    }.
+  ?elixir_expr( erl_syntax:variable_name(Expression),
+                [],
+                'Elixir'
+              ).
