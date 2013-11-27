@@ -178,6 +178,14 @@ translate_expression(tuple, Expression) ->
      arguments = translate_elements( erl_syntax:tuple_elements(Expression) )
     };
 
+
+% { } - Tuples *not* containing exactly 2 elements are represented by a call to :{}
+translate_expression(tupleExt, Expression) ->
+  #elixir_expr{
+     qualifier = 'tupleExt', metadata  = [],
+     arguments = translate_elements( erl_syntax:tuple_elements(Expression) )
+    };
+
 translate_expression(case_expr, Expression) ->
   #elixir_expr{
      qualifier = 'case', metadata  = ?ElixirEnv,
